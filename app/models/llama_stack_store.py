@@ -911,18 +911,38 @@ def detect_and_execute_fintech_tool(
                 build_whatsapp_interactive_menu(anon_reply),
             )
 
-    if norm in ("continuar_solicitud", "si continuar solicitud", "si, continuar solicitud", "continuar con mi solicitud"):
-        active_flow = llama_stack_store.get_active_flow(session_id)
-        if active_flow:
-            saved_reply = active_flow.get("reply", "Retomando tu solicitud.")
-            saved_menu = active_flow.get("menu")
-            return (
-                "CU-FIN-001-RESUME",
-                "resume_loan_flow",
-                {"status": "resumed", "product": active_flow.get("product"), "step": active_flow.get("step")},
-                saved_reply,
-                saved_menu,
-            )
+    active_flow = llama_stack_store.get_active_flow(session_id)
+    is_resuming_flow = active_flow is not None and (
+        norm in (
+            "continuar_solicitud",
+            "si continuar solicitud",
+            "si, continuar solicitud",
+            "continuar con mi solicitud",
+            "si",
+            "sí",
+            "continuar",
+            "claro",
+            "va",
+            "adelante",
+            "por favor",
+            "si por favor",
+            "si continuar",
+            "retomar",
+            "dale",
+            "ok",
+        )
+        and active_flow.get("step") not in ("confirmar_simulacion", "simulado")
+    )
+    if is_resuming_flow:
+        saved_reply = active_flow.get("reply", "Retomando tu solicitud.")
+        saved_menu = active_flow.get("menu")
+        return (
+            "CU-FIN-001-RESUME",
+            "resume_loan_flow",
+            {"status": "resumed", "product": active_flow.get("product"), "step": active_flow.get("step")},
+            saved_reply,
+            saved_menu,
+        )
 
     if any(f in norm for f in ["robo", "me robaron", "fraude", "clonaron", "suplantaron", "tarjeta clonada"]):
         fraud_reply = (
@@ -1212,8 +1232,9 @@ def detect_and_execute_fintech_tool(
     active_is_term_step = active_flow.get("step") == "elegir_plazo"
     text_month_match = re.search(r"\b(\d{1,2})\s*mes", norm)
     text_day_match = re.search(r"\b(7|14|21|28)\s*dia", norm)
+    bare_number_match = re.match(r"^(?:a\s+|en\s+)?(\d{1,2})$", norm.strip()) if active_is_term_step else None
 
-    if term_match or (active_is_term_step and (text_month_match or text_day_match)):
+    if term_match or (active_is_term_step and (text_month_match or text_day_match or bare_number_match)):
         if term_match:
             kind, num_str, unit, amt_str = term_match.groups()
             term_num = int(num_str)
@@ -1226,8 +1247,22 @@ def detect_and_execute_fintech_tool(
             if text_day_match:
                 term_num = int(text_day_match.group(1))
                 term_unit = "d"
-            else:
+            elif text_month_match:
                 term_num = int(text_month_match.group(1))
+                term_unit = "m"
+            elif bare_number_match:
+                val = int(bare_number_match.group(1))
+                if kind == "express" and val in (7, 14, 21, 28):
+                    term_num = val
+                    term_unit = "d"
+                elif 1 <= val <= 24:
+                    term_num = val
+                    term_unit = "m"
+                else:
+                    term_num = 6
+                    term_unit = "m"
+            else:
+                term_num = 6
                 term_unit = "m"
 
         product_type = "DINERO_EXPRESS" if kind == "express" or term_unit == "d" else ("PRESTAMO_NEGOCIO" if kind == "negocio" else "PRESTAMO_PERSONAL")
@@ -1325,21 +1360,44 @@ def detect_and_execute_fintech_tool(
             return ("CU-01", "simulate_loan", {"error": str(exc)}, friendly, build_whatsapp_interactive_menu(friendly))
 
     originate_match = re.match(r"^(?:solicitar|sim|contratar)_(plazo|express|negocio|personal)_(\d+)(m|d)_(\d+)$", norm)
-    if originate_match:
-        kind, num_str, unit, amt_str = originate_match.groups()
-        amount = float(amt_str)
-        if kind == "express" or unit == "d":
-            product_type = "DINERO_EXPRESS"
-            term_months = None
-            term_days = int(num_str)
-        elif kind == "negocio":
-            product_type = "PRESTAMO_NEGOCIO"
-            term_months = int(num_str)
-            term_days = None
+    active_is_simulated_step = active_flow.get("step") == "simulado"
+    wants_to_originate_text = active_is_simulated_step and norm in (
+        "solicitar",
+        "contratar",
+        "lo quiero",
+        "si",
+        "si solicitar",
+        "si contratar",
+        "solicitar este plazo",
+        "confirmar",
+        "adelante",
+        "va",
+        "acepto",
+        "me interesa",
+    )
+    if originate_match or wants_to_originate_text:
+        if originate_match:
+            kind, num_str, unit, amt_str = originate_match.groups()
+            amount = float(amt_str)
+            if kind == "express" or unit == "d":
+                product_type = "DINERO_EXPRESS"
+                term_months = None
+                term_days = int(num_str)
+            elif kind == "negocio":
+                product_type = "PRESTAMO_NEGOCIO"
+                term_months = int(num_str)
+                term_days = None
+            else:
+                product_type = "PRESTAMO_PERSONAL"
+                term_months = int(num_str)
+                term_days = None
         else:
-            product_type = "PRESTAMO_PERSONAL"
-            term_months = int(num_str)
-            term_days = None
+            product_type = active_flow.get("product_type", "PRESTAMO_PERSONAL")
+            amount = float(active_flow.get("amount", 10000.0))
+            term_num = int(active_flow.get("term_num", 6))
+            term_unit = active_flow.get("term_unit", "m")
+            term_months = term_num if term_unit == "m" else None
+            term_days = term_num if term_unit == "d" else None
 
         args = {
             "user_id": user_identifier,
