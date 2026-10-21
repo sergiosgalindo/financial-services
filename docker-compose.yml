@@ -1,0 +1,45 @@
+services:
+  fintech-db:
+    image: pgvector/pgvector:pg16
+    container_name: fintech-postgres-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fintech_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fintech_pass}
+      POSTGRES_DB: ${POSTGRES_DB:-fintech_db}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - fintech_pgdata:/var/lib/postgresql/data
+      - ./docker/init-db.sql:/docker-entrypoint-initdb.d/01-init-extensions.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fintech_user} -d ${POSTGRES_DB:-fintech_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  fintech-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fintech-omnichannel-api
+    restart: unless-stopped
+    depends_on:
+      fintech-db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER:-fintech_user}:${POSTGRES_PASSWORD:-fintech_pass}@fintech-db:5432/${POSTGRES_DB:-fintech_db}
+      LLM_BASE_URL: ${DOCKER_LLM_BASE_URL:-http://host.docker.internal:11434/v1/chat/completions}
+      LLM_MODEL: ${LLM_MODEL:-llama3.1:8b}
+    ports:
+      - "${APP_PORT:-8000}:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - fintech_hf_cache:/app/.cache/huggingface
+
+volumes:
+  fintech_pgdata:
+  fintech_hf_cache:

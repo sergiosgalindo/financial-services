@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fintech Omnichannel Assistant — WhatsApp + Llama + RAG + SQL Core</title>
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="bg-light">
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom shadow-sm">
+    <div class="container-fluid px-4">
+      <span class="navbar-brand fw-bold d-flex align-items-center gap-2">
+        <span>🏦 Fintech Omnichannel Orchestrator</span>
+        <span class="badge bg-success">Llama 3.1 + RAG + SQL</span>
+      </span>
+      <div class="d-flex align-items-center gap-2">
+        <span id="healthBadge" class="badge bg-secondary">Verificando estado...</span>
+        <button id="openOptionsTopBtn" class="btn btn-success btn-sm fw-semibold" type="button">
+          ☰ Ver opciones
+        </button>
+        <button id="resetBtn" class="btn btn-outline-light btn-sm" type="button">
+          Reiniciar Conversación
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container-fluid py-4 px-4">
+    <div class="row g-4">
+      <div class="col-lg-7">
+        <div class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div>
+              <h5 class="mb-0 fw-bold">Consola Omnicanal (WhatsApp & Web)</h5>
+              <small class="text-muted">Soporta Menú Interactivo "Ver opciones", CU-01..CU-04, RAG Legal y Llama Stack Memory</small>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <label for="customerSelect" class="small fw-semibold text-secondary mb-0">Cliente activo:</label>
+              <select id="customerSelect" class="form-select form-select-sm" style="width: auto;">
+                <option value="usr-carlos-001">Carlos Mendoza (ACTIVO - Línea $50,000)</option>
+                <option value="usr-ana-002">Ana Sofía Garza (PENDIENTE_VALIDACION)</option>
+                <option value="usr-roberto-003">Roberto Vázquez (BLOQUEADO_RIESGO)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="card-body d-flex flex-column position-relative">
+            <div class="mb-3 d-flex flex-wrap gap-2">
+              <button id="openOptionsQuickBtn" class="btn btn-dark btn-sm fw-semibold" type="button">
+                ☰ Ver opciones (Menú WhatsApp)
+              </button>
+              <button class="btn btn-outline-primary btn-sm quick-prompt" data-prompt="Simula un préstamo personal de $12,000 a 6 meses">
+                📄 CU-01: Simular Préstamo $12,000
+              </button>
+              <button class="btn btn-outline-success btn-sm quick-prompt" data-prompt="Quiero validar mi contrato con mi código OTP 482910">
+                🔐 CU-02: Validar Contrato IVR
+              </button>
+              <button class="btn btn-outline-info btn-sm quick-prompt" data-prompt="¿Cuál es mi estado de cuenta, saldo disponible y pago mínimo?">
+                📊 CU-03: Estado de Cuenta
+              </button>
+              <button class="btn btn-outline-dark btn-sm quick-prompt" data-prompt="Ya realicé mi pago de $2,859.75 por SPEI">
+                ✅ CU-04: Conciliar Pago SPEI
+              </button>
+            </div>
+
+            <div
+              id="chatMessages"
+              class="chat-box border rounded p-3 mb-3 bg-white flex-grow-1"
+              aria-live="polite"
+            ></div>
+
+            <form id="chatForm" class="d-flex gap-2">
+              <button
+                id="openOptionsInputBtn"
+                type="button"
+                class="btn btn-outline-dark fw-semibold text-nowrap"
+                title="Abrir menú interactivo de WhatsApp"
+              >
+                ☰ Ver opciones
+              </button>
+              <input
+                id="messageInput"
+                type="text"
+                class="form-control"
+                placeholder="Escribe 'Hola', 'Menú' o selecciona 'Ver opciones'..."
+                required
+              />
+              <button id="sendBtn" type="submit" class="btn btn-primary px-4">
+                Enviar
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-5">
+        <div class="card shadow-sm border-0 mb-4">
+          <div class="card-header bg-white py-3">
+            <h6 class="mb-0 fw-bold">🧮 Simulador Directo de Amortización Francesa (CU-01)</h6>
+          </div>
+          <div class="card-body">
+            <form id="loanSimForm" class="row g-2 align-items-end">
+              <div class="col-sm-4">
+                <label class="form-label small mb-1" for="simProduct">Producto</label>
+                <select id="simProduct" class="form-select form-select-sm">
+                  <option value="PRESTAMO_PERSONAL">Préstamo Personal</option>
+                  <option value="DINERO_EXPRESS">Dinero Express</option>
+                </select>
+              </div>
+              <div class="col-sm-4">
+                <label class="form-label small mb-1" for="simAmount">Monto (MXN)</label>
+                <input id="simAmount" type="number" class="form-control form-control-sm" value="10000" min="1000" max="50000" />
+              </div>
+              <div class="col-sm-4">
+                <button type="submit" class="btn btn-success btn-sm w-100">Calcular Tabla</button>
+              </div>
+            </form>
+            <div id="simResultBox" class="mt-3 small text-muted">
+              Ejecuta una simulación para inspeccionar el desglose de capital, interés ordinario, IVA (16%) y contraseña PDF.
+            </div>
+          </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+          <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 fw-bold">🔍 Inspector de Base de Datos & Trazabilidad RAG</h6>
+            <button id="refreshCustomersBtn" class="btn btn-outline-secondary btn-sm" type="button">
+              Actualizar BD
+            </button>
+          </div>
+          <div class="card-body">
+            <div id="sourcesPanel" class="mb-3">
+              <p class="small text-muted mb-1">Fragmentos RAG y Function Calling de la última respuesta:</p>
+              <div id="sourcesList" class="small text-secondary">Sin consultas recientes.</div>
+            </div>
+            <hr />
+            <div>
+              <p class="small fw-semibold mb-2">Cuentas de Crédito y Bitácora Omnicanal en BD:</p>
+              <div id="customersList" class="small">Cargando registros financieros...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- WhatsApp Interactive List Bottom-Sheet Modal ("Ver opciones") -->
+  <div id="waOptionsOverlay" class="wa-sheet-overlay d-none" role="dialog" aria-modal="true" aria-labelledby="waSheetTitle">
+    <div class="wa-sheet-container">
+      <div class="wa-sheet-handle"></div>
+      <div class="wa-sheet-header">
+        <button id="closeWaSheetBtn" type="button" class="wa-sheet-close" aria-label="Cerrar menú">✕</button>
+        <span id="waSheetTitle" class="wa-sheet-title">Ver opciones</span>
+        <span style="width: 28px;"></span>
+      </div>
+      <div id="waSheetRows" class="wa-sheet-list"></div>
+      <div class="wa-sheet-footer">Toca para seleccionar un elemento</div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
