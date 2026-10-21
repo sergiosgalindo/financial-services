@@ -1004,6 +1004,31 @@ def detect_and_execute_fintech_tool(
             err_payload = {"error": str(exc), "user_id": user_identifier}
             return ("CU-01-ORIGINATION", "originate_loan_with_scoring", err_payload, f"⚠️ {exc}", build_whatsapp_interactive_menu())
 
+    is_payment_or_dispute = any(
+        other in norm
+        for other in [
+            "validar contrato",
+            "estado de cuenta",
+            "realice mi pago",
+            "hice un pago",
+            "pague",
+            "abono",
+            "abone",
+            "oxxo",
+            "spei",
+            "liquidar",
+            "cargo no reconocido",
+            "no reconozco",
+            "seguir folio",
+        ]
+    )
+
+    is_direct_amount_request = (
+        explicit_amount is not None
+        and "?" not in user_text
+        and not is_payment_or_dispute
+    )
+
     has_loan_keywords = (
         any(
             k in norm
@@ -1014,6 +1039,8 @@ def detect_and_execute_fintech_tool(
                 "simul",
                 "cotiz",
                 "prestamo",
+                "prestas",
+                "prestar",
                 "credito",
                 "dinero express",
                 "express money",
@@ -1021,13 +1048,10 @@ def detect_and_execute_fintech_tool(
             ]
         )
         and "?" not in user_text
+        and not is_payment_or_dispute
         and not any(
             other in norm
             for other in [
-                "validar contrato",
-                "estado de cuenta",
-                "realice mi pago",
-                "liquidar mi credito",
                 "tasa",
                 "cat",
                 "moratorio",
@@ -1040,7 +1064,7 @@ def detect_and_execute_fintech_tool(
         )
     )
 
-    if has_loan_keywords or (in_loan_flow and explicit_amount is not None and "?" not in user_text):
+    if has_loan_keywords or is_direct_amount_request:
         if explicit_amount is None:
             is_small_hint = any(
                 w in norm for w in ["no muy grande", "pequeno", "poco", "chico", "corto", "express", "menu_dinero_express"]

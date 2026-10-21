@@ -439,5 +439,17 @@ def test_cu_fin_001_hybrid_business_loan_rag_interruption_and_qa_criteria() -> N
         == "Para darte el dato exacto sobre ese punto, prefiero comunicarte con uno de nuestros asesores especializados. ¿Te gustaría?"
     )
 
+    direct_amt = client.post(
+        "/api/chat",
+        json={"message": "Quiero 1000 pesos", "session_id": "test-direct-1000"},
+    )
+    assert direct_amt.status_code == 200
+    d_body = direct_amt.json()
+    assert d_body["active_use_case"] == "CU-01"
+    assert d_body["tool_executed"] == "simulate_loan"
+    assert "$1,000.00" in d_body["reply"]
+    assert d_body["interactive_menu"]["action"]["button"] == "Elegir plazo"
+
+
 
 
