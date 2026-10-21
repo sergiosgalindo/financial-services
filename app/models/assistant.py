@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import httpx
 from sqlalchemy.orm import Session
 
-from app.models.database import RagKnowledgeChunk
+from app.models.database import RagKnowledgeChunk, register_whatsapp_opt_out
 from app.models.llama_stack_store import (
     build_flow_return_interactive_menu,
     build_whatsapp_interactive_menu,
@@ -28,16 +28,10 @@ EMBEDDING_MODEL_NAME = os.getenv(
 )
 
 ZERO_HALLUCINATION_CONTINGENCY_MSG = (
-    "Para darte el dato exacto sobre ese punto, prefiero comunicarte con uno de nuestros asesores especializados. ¿Te gustaría?"
+    "No quiero darte un dato incorrecto sobre eso. Puedo pasarte con un asesor para que lo confirme. ¿Te comunico?"
 )
 
-SYSTEM_PROMPT = """Eres un asesor financiero virtual experto especializado en productos de crédito (Personal, Express y Negocio). Tu objetivo es guiar al usuario y resolver dudas con absoluta precisión.
-
-REGLAS DE ORO:
-1. Responde con un tono profesional, empático y extremadamente conciso (máximo 2 o 3 líneas cortas, nunca superes 320 caracteres). NUNCA inicies con "Según el contexto".
-2. Apóyate de forma estricta en el CONTEXTO RECUPERADO. Si la información no soluciona la duda del cliente, di textualmente: "Para darte el dato exacto sobre ese punto, prefiero comunicarte con uno de nuestros asesores especializados. ¿Te gustaría?".
-3. Está terminantemente prohibido inventar porcentajes, penalizaciones, montos o plazos que no aparezcan de forma explícita en el contexto.
-"""
+SYSTEM_PROMPT = """Responde en español de México, con tono cercano y respetuoso, en máximo 2–3 frases cortas. Resuelve primero la pregunta actual y conserva el paso conversacional activo. Usa exclusivamente datos de la fuente RAG recuperada o de la salida de una herramienta transaccional. La salida del core es la única fuente para cifras personales, elegibilidad, saldos, pagos y estado. Si faltan datos, las fuentes se contradicen o la solicitud requiere una decisión no respaldada, no completes por inferencia: explica que necesitas confirmarlo y ofrece asesor humano. No pidas ni reveles NIP, CVV, contraseñas u OTP. Nunca garantices aprobación, transferencia, envío, bloqueo o plazo sin confirmación del sistema correspondiente."""
 
 
 def _normalize(text: str) -> str:
@@ -277,6 +271,53 @@ class FinancialRAGAssistant:
     ) -> ChatResponse:
         self.sync_db_chunks(db)
 
+        norm_msg = _normalize(message)
+        if norm_msg in ("baja", "stop") or any(
+            o in norm_msg for o in ["darme de baja", "no quiero recibir", "dejar de recibir", "cancelar mensajes"]
+        ):
+            register_whatsapp_opt_out(db, user_id)
+            llama_stack_store.set_active_flow(session_id, None)
+            opt_reply = (
+                "Hemos registrado tu baja. No recibirás más mensajes por este medio. "
+                "Si necesitas ayuda en el futuro, aquí estaremos para apoyarte."
+            )
+            llama_stack_store.append_message(session_id, "user", message)
+            llama_stack_store.append_message(session_id, "assistant", opt_reply)
+            return ChatResponse(
+                reply=opt_reply,
+                sources=[],
+                model="opt-out-handler",
+                used_fallback=False,
+                safety_blocked=False,
+                session_id=session_id,
+                active_use_case="OPT-OUT",
+                conversation_items_count=llama_stack_store.get_items_count(session_id),
+            )
+
+        is_sensitive = bool(
+            re.search(r"\b(nip|cvv|clave|contrasena|password|codigo otp)\b.*?\b\d{3,6}\b", norm_msg)
+            or re.search(r"\b\d{16}\b", norm_msg)
+        )
+        if is_sensitive:
+            warn_reply = (
+                "Por tu seguridad, nunca compartas tu NIP, CVV, contraseñas ni códigos OTP por este chat. "
+                "Hemos protegido tus datos. ¿En qué más te puedo ayudar?"
+            )
+            redacted = re.sub(r"\b\d{3,16}\b", "[DATO PROTEGIDO]", message)
+            llama_stack_store.append_message(session_id, "user", redacted)
+            llama_stack_store.append_message(session_id, "assistant", warn_reply)
+            return ChatResponse(
+                reply=warn_reply,
+                sources=[],
+                model="sensitive-data-guard",
+                used_fallback=False,
+                safety_blocked=False,
+                session_id=session_id,
+                active_use_case="SENSITIVE-DATA-GUARD",
+                interactive_menu=build_whatsapp_interactive_menu(warn_reply),
+                conversation_items_count=llama_stack_store.get_items_count(session_id),
+            )
+
         input_safety = evaluate_input_safety(message)
         if not input_safety["safe"]:
             safe_msg = input_safety["safe_reply"] or "Solicitud bloqueada por seguridad."
@@ -296,6 +337,8 @@ class FinancialRAGAssistant:
         conv_intent = detect_conversational_intent(message)
         if conv_intent is not None:
             reply_text = conv_intent["reply"]
+            if conv_intent.get("intent") == "closing_intent":
+                llama_stack_store.set_active_flow(session_id, None)
             llama_stack_store.append_message(session_id, "user", message)
             llama_stack_store.append_message(session_id, "assistant", reply_text)
             return ChatResponse(

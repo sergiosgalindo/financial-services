@@ -146,7 +146,7 @@ def test_chat_function_calling_and_llama_stack_memory() -> None:
     assert s_body["tool_executed"] == "simulate_loan"
     assert "Simulación de" in s_body["reply"]
     assert ".pdf" not in s_body["reply"]
-    assert s_body["interactive_menu"]["action"]["button"] == "Elegir plazo"
+    assert s_body["interactive_menu"]["action"]["button"] == "Siguiente paso"
     assert s_body["conversation_items_count"] >= 4
 
     reset_res = client.post("/api/conversation/reset", json={"session_id": session_id})
@@ -278,9 +278,10 @@ def test_whatsapp_interactive_menu_list_and_selection() -> None:
     body = menu_res.json()
     assert body["interactive_menu"] is not None
     assert body["interactive_menu"]["action"]["button"] == "Ver opciones"
-    rows = body["interactive_menu"]["action"]["sections"][0]["rows"]
-    assert len(rows) >= 6
-    for row in rows:
+    sections = body["interactive_menu"]["action"]["sections"]
+    total_rows = [r for s in sections for r in s["rows"]]
+    assert len(total_rows) >= 6
+    for row in total_rows:
         assert len(row["title"]) <= 24
         assert len(row["description"]) <= 72
 
@@ -295,7 +296,18 @@ def test_whatsapp_interactive_menu_list_and_selection() -> None:
     assert vague_loan.status_code == 200
     v_body = vague_loan.json()
     assert v_body["active_use_case"] == "CU-01-DISCOVERY"
-    assert "qué monto" in v_body["reply"].lower()
+    assert "gasto personal o para tu negocio" in v_body["reply"]
+
+    followup_purpose = client.post(
+        "/api/chat",
+        json={
+            "message": "Personal",
+            "session_id": "test-human-loan-flow",
+            "user_id": "usr-carlos-001",
+        },
+    )
+    assert followup_purpose.status_code == 200
+    assert followup_purpose.json()["active_use_case"] == "CU-01-DISCOVERY"
 
     followup_amount = client.post(
         "/api/chat",
@@ -307,10 +319,36 @@ def test_whatsapp_interactive_menu_list_and_selection() -> None:
     )
     assert followup_amount.status_code == 200
     f_body = followup_amount.json()
-    assert f_body["active_use_case"] == "CU-01"
-    assert f_body["tool_executed"] == "simulate_loan"
-    assert "$2,000.00" in f_body["reply"]
-    assert f_body["interactive_menu"]["action"]["button"] == "Elegir plazo"
+    assert f_body["active_use_case"] == "CU-01-DISCOVERY"
+    assert "meses" in f_body["reply"]
+
+    followup_term = client.post(
+        "/api/chat",
+        json={
+            "message": "6 meses",
+            "session_id": "test-human-loan-flow",
+            "user_id": "usr-carlos-001",
+        },
+    )
+    assert followup_term.status_code == 200
+    t_body = followup_term.json()
+    assert t_body["active_use_case"] == "CU-01-DISCOVERY"
+    assert "¿Así está bien para preparar una simulación?" in t_body["reply"]
+
+    followup_confirm = client.post(
+        "/api/chat",
+        json={
+            "message": "Sí",
+            "session_id": "test-human-loan-flow",
+            "user_id": "usr-carlos-001",
+        },
+    )
+    assert followup_confirm.status_code == 200
+    c_body = followup_confirm.json()
+    assert c_body["active_use_case"] == "CU-01"
+    assert c_body["tool_executed"] == "simulate_loan"
+    assert "$2,000.00" in c_body["reply"]
+    assert c_body["interactive_menu"]["action"]["button"] == "Siguiente paso"
 
     list_reply_payload = {
         "object": "whatsapp_business_account",
@@ -436,7 +474,7 @@ def test_cu_fin_001_hybrid_business_loan_rag_interruption_and_qa_criteria() -> N
     assert qa2.status_code == 200
     assert (
         qa2.json()["reply"]
-        == "Para darte el dato exacto sobre ese punto, prefiero comunicarte con uno de nuestros asesores especializados. ¿Te gustaría?"
+        == "No quiero darte un dato incorrecto sobre eso. Puedo pasarte con un asesor para que lo confirme. ¿Te comunico?"
     )
 
     direct_amt = client.post(
@@ -445,10 +483,65 @@ def test_cu_fin_001_hybrid_business_loan_rag_interruption_and_qa_criteria() -> N
     )
     assert direct_amt.status_code == 200
     d_body = direct_amt.json()
-    assert d_body["active_use_case"] == "CU-01"
-    assert d_body["tool_executed"] == "simulate_loan"
-    assert "$1,000.00" in d_body["reply"]
-    assert d_body["interactive_menu"]["action"]["button"] == "Elegir plazo"
+    assert d_body["active_use_case"] == "CU-01-DISCOVERY"
+    assert "gasto personal o para tu negocio" in d_body["reply"]
+    assert d_body["interactive_menu"]["action"]["button"] == "Elegir opción"
+
+
+def test_opt_out_registration_and_response() -> None:
+    res = client.post(
+        "/api/chat",
+        json={"message": "baja", "session_id": "test-opt-out", "user_id": "usr-carlos-001"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["active_use_case"] == "OPT-OUT"
+    assert "registrado tu baja" in body["reply"]
+
+
+def test_sensitive_data_protection() -> None:
+    res = client.post(
+        "/api/chat",
+        json={"message": "Mi NIP es 1234", "session_id": "test-sensitive", "user_id": "usr-carlos-001"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["active_use_case"] == "SENSITIVE-DATA-GUARD"
+    assert "nunca compartas tu NIP" in body["reply"]
+
+
+def test_fraud_alert_escalation() -> None:
+    res = client.post(
+        "/api/chat",
+        json={"message": "Ayuda me robaron mi tarjeta y clonaron mi cuenta", "session_id": "test-fraud", "user_id": "usr-carlos-001"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["active_use_case"] == "CU-03-FRAUD"
+    assert "800-999-2026" in body["reply"]
+
+
+def test_payment_reference_request() -> None:
+    res = client.post(
+        "/api/chat",
+        json={"message": "Hice un pago hoy", "session_id": "test-pay-ref", "user_id": "usr-carlos-001"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["active_use_case"] == "CU-04-PAYMENT"
+    assert "referencia o clave de rastreo" in body["reply"]
+
+
+def test_closing_intent_clears_active_flow() -> None:
+    res = client.post(
+        "/api/chat",
+        json={"message": "Muchas gracias, eso es todo", "session_id": "test-closing", "user_id": "usr-carlos-001"},
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["active_use_case"] == "closing_intent"
+    assert "nunca te pediremos tu NIP" in body["reply"]
+
 
 
 

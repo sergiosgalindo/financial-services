@@ -9,7 +9,7 @@
     "id": "FIN-002",
     "category": "Intereses Moratorios y Pagos Tardíos",
     "question": "¿Cómo se calculan los intereses moratorios si me atraso en una cuota de mi crédito?",
-    "answer": "En caso de atraso se aplica 1.5 veces la tasa ordinaria anual sobre el capital vencido diario más 16% de IVA. No hay penalización por pagos adelantados."
+    "answer": "Tienes hasta el tercer día para ponerte al corriente antes de que se genere un interés moratorio del 5% sobre el saldo vencido más IVA. No hay penalización por pagos anticipados."
   },
   {
     "id": "FIN-003",
@@ -21,25 +21,25 @@
     "id": "FIN-004",
     "category": "Cargos No Reconocidos y Saldo Retenido",
     "question": "¿Qué debo hacer para reportar un cargo no reconocido y qué pasa con mi saldo durante la aclaración?",
-    "answer": "Tienes 90 días desde el corte para reportarlo. El monto reclamado se protege como 'Saldo en Aclaración' y no te será exigible ni generará intereses durante la revisión (máximo 45 días hábiles)."
+    "answer": "Tienes 90 días desde el corte para reportarlo. El monto reclamado se protege como 'Saldo en Aclaración' y no te será exigible ni generará intereses durante la revisión (hasta 45 días hábiles)."
   },
   {
     "id": "FIN-005",
     "category": "Seguridad y Contraseña de Archivos PDF",
     "question": "¿Cuál es la contraseña para abrir mi estado de cuenta o contrato?",
-    "answer": "Tus documentos están protegidos con los primeros 4 caracteres de tu RFC en MAYÚSCULAS seguidos de los últimos 4 dígitos de tu celular registrado (ejemplo: MECA8664)."
+    "answer": "Por tu seguridad nunca compartimos ni pedimos contraseñas por chat. Tus documentos PDF se abren con la clave personal definida al contratar a través de tu canal oficial seguro."
   },
   {
     "id": "FIN-006",
     "category": "Validación de Identidad IVR y Activación de Crédito",
     "question": "¿Por qué mi crédito aparece como PENDIENTE_VALIDACION y cómo lo activo?",
-    "answer": "Por seguridad validamos tu identidad con un código OTP telefónico de 6 dígitos. Al confirmarlo, tu crédito pasa a estatus ACTIVO de inmediato."
+    "answer": "Por seguridad tu solicitud pasa por validación de identidad en el canal oficial. Nunca compartas códigos OTP, NIP ni CVV con nadie por chat; una vez validado en el sistema, tu crédito pasa a estatus ACTIVO."
   },
   {
     "id": "FIN-007",
     "category": "Conciliación de Pagos SPEI, OXXO y Liquidación Anticipada",
     "question": "¿Cuánto tarda en reflejarse mi pago por SPEI u OXXO y cómo funciona la liquidación anticipada?",
-    "answer": "Tus abonos por SPEI y OXXO se reflejan al instante actualizando tu saldo disponible. Puedes liquidar anticipadamente el total de tu deuda sin ninguna comisión."
+    "answer": "Al reportar tu referencia validamos que el pago recibido por el banco quede aplicado a tu crédito. Puedes consultar o simular la liquidación anticipada del total de tu deuda sin comisión por prepago."
   },
   {
     "id": "FIN-008",
@@ -51,6 +51,7 @@
     "id": "FIN-009",
     "category": "Requisitos de Express Money, Préstamo Personal y Préstamo para Negocio",
     "question": "¿Qué requisitos piden para Express Money, Préstamo Personal sin comprobantes y Préstamo para Negocio?",
-    "answer": "En Express Money no pedimos comprobantes de ingresos complejos, solo INE y Cuenta CLABE. Si buscas Préstamo Personal pero no tienes ingresos comprobables, te aprobamos Express Money al instante. En Préstamo para Negocio te calificamos según la antigüedad de tu comercio."
+    "answer": "Para Dinero Express (Express Money) se solicita INE vigente y Cuenta CLABE, sujeto a evaluación del sistema. Si no cuentas con comprobantes de ingresos para Préstamo Personal, podemos evaluar esta alternativa. Para Préstamo para Negocio registramos la antigüedad y monto requerido para evaluar tu solicitud."
   }
 ]
+

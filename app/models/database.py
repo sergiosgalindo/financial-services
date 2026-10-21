@@ -282,6 +282,7 @@ def calculate_french_amortization(
 def init_db() -> None:
     Base.metadata.create_all(bind=engine)
     seed_initial_data()
+    harmonize_rag_chunks()
 
 
 def seed_initial_data() -> None:
@@ -514,6 +515,87 @@ def seed_initial_data() -> None:
             db.commit()
 
 
+def harmonize_rag_chunks() -> None:
+    with SessionLocal() as db:
+        late_chunk = (
+            db.query(RagKnowledgeChunk)
+            .filter(RagKnowledgeChunk.section_title.like("Cláusula 7%"))
+            .first()
+        )
+        if late_chunk:
+            late_chunk.content_text = (
+                "En caso de atraso, el cliente tiene hasta el tercer día posterior a su fecha límite para "
+                "ponerse al corriente antes de que se genere un interés moratorio del 5% sobre el saldo vencido "
+                "más IVA. No se suspenden operaciones antes de 15 días de impago. "
+                "No se cobran penalizaciones por liquidación anticipada."
+            )
+        security_chunk = (
+            db.query(RagKnowledgeChunk)
+            .filter(RagKnowledgeChunk.section_title.like("Sección 5%"))
+            .first()
+        )
+        if security_chunk:
+            security_chunk.section_title = "Sección 5: Cargos No Reconocidos y Saldo Retenido"
+            security_chunk.content_text = (
+                "Para reportar un cargo no reconocido, el titular dispone de 90 días naturales desde la fecha "
+                "de corte. Durante la investigación (hasta 45 días hábiles), el monto en disputa se registra "
+                "como saldo retenido y no es exigible ni genera intereses moratorios. "
+                "La institución nunca solicita NIP, CVV, contraseñas ni códigos de verificación por chat."
+            )
+        db.commit()
+
+
+def get_early_payoff_quote(db: Session, user_identifier: str) -> Dict[str, Any]:
+    user = find_user_by_identifier(db, user_identifier)
+    if not user:
+        raise ValueError(f"User '{user_identifier}' not found.")
+    account = (
+        db.query(CreditAccount)
+        .filter(CreditAccount.user_id == user.user_id)
+        .order_by(CreditAccount.approved_credit_line.desc())
+        .first()
+    )
+    if not account:
+        raise ValueError("No credit account found for user.")
+    unpaid = (
+        db.query(AmortizationInstallment)
+        .filter(
+            AmortizationInstallment.contract_id == account.contract_id,
+            AmortizationInstallment.payment_status.in_(["PENDIENTE", "VENCIDA"]),
+        )
+        .all()
+    )
+    outstanding_principal = _round_currency(
+        sum((Decimal(str(i.principal_amount)) for i in unpaid), Decimal("0.00"))
+    )
+    return {
+        "user_id": user.user_id,
+        "contract_id": account.contract_id,
+        "outstanding_principal": float(outstanding_principal),
+        "pending_installments_count": len(unpaid),
+        "prepayment_fee": 0.0,
+    }
+
+
+def register_whatsapp_opt_out(db: Session, user_identifier: str) -> bool:
+    user = find_user_by_identifier(db, user_identifier)
+    if not user:
+        return False
+    user.opt_in_whatsapp = False
+    db.add(
+        CommunicationLog(
+            user_id=user.user_id,
+            channel="WHATSAPP",
+            use_case_code="OPT-OUT",
+            hsm_template_name="baja_mensajes",
+            delivery_status="REGISTRADO",
+            provider_tracking_id=f"optout.{uuid.uuid4().hex[:12]}",
+        )
+    )
+    db.commit()
+    return True
+
+
 def find_user_by_identifier(db: Session, identifier: str) -> Optional[User]:
     if not identifier:
         return None
@@ -548,10 +630,6 @@ def simulate_loan_in_db(
     if user.account_status != "ACTIVO":
         raise PermissionError(
             f"User account status is '{user.account_status}'. Only 'ACTIVO' accounts can simulate credit."
-        )
-    if not user.opt_in_whatsapp:
-        raise PermissionError(
-            "Customer does not have an active WhatsApp opt-in (`opt_in_whatsapp=False`) required for CU-01."
         )
 
     product = (

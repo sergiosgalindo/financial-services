@@ -268,7 +268,7 @@ async def process_whatsapp_webhook_payload(payload: Dict[str, Any]) -> List[Dict
             start_ts = time.perf_counter()
             with SessionLocal() as db:
                 user = find_user_by_identifier(db, normalized_sender)
-                user_id = user.user_id if user else "usr-carlos-001"
+                user_id = user.user_id if user else f"anon-{normalized_sender}"
                 session_id = f"wa-{normalized_sender}"
 
                 chat_res = assistant_service.answer(
