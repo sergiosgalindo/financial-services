@@ -24,14 +24,17 @@
 - `app/controllers/fintech_controller.py`
 - `app/controllers/whatsapp_controller.py`
 - `web/index.html`, `web/styles.css`, `web/app.js`
-- `knowledge_base.json`, `Dockerfile`, `requirements.txt`, `requirements-dev.txt`, `README.md`, `CHANGELOG.md`
+- `knowledge_base.json`, `Dockerfile`, `docker-compose.yml`, `docker/init-db.sql`, `requirements.txt`, `requirements-dev.txt`, `README.md`, `CHANGELOG.md`
 - `tests/test_app_integration.py`
 
 ## Tests & Checks Run
 
 - `python -m py_compile app/main.py app/models/*.py app/controllers/*.py tests/test_app_integration.py`: Passed (0 errors)
-- `pytest -v`: Passed (`11 passed in 0.69s`)
+- `pytest -v`: Passed (`20 passed in 0.67s`)
+- Live WhatsApp phone end-to-end integration: Verified via ngrok tunnel and Meta Cloud API webhook.
 
-## Known Limitations
+## Known Limitations & Production Readiness
 
 - External core-banking SPEI wire transfers and Twilio voice hardware streams are simulated via deterministic database transactions and webhook endpoints.
+- In-memory conversation state (`LlamaStackStore`) should be backed by Redis or PostgreSQL when scaling to multiple worker processes.
+- Cloud deployment requires a dedicated LLM endpoint (Groq / vLLM) and permanent Meta System User token.
