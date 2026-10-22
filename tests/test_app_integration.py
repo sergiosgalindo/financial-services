@@ -596,6 +596,30 @@ def test_affirmative_resumption_after_rag_interruption() -> None:
     assert "meses" in b_resume["reply"]
 
 
+def test_carlos_screenshot_affirmative_phrase_with_comma_and_tokens() -> None:
+    session_id = "test-screenshot-phrase"
+    r1 = client.post("/api/chat", json={"message": "Quiero 10000 pesos", "session_id": session_id, "user_id": "usr-carlos-001"})
+    assert r1.status_code == 200
+    r2 = client.post("/api/chat", json={"message": "Personal", "session_id": session_id, "user_id": "usr-carlos-001"})
+    assert r2.status_code == 200
+    r3 = client.post("/api/chat", json={"message": "6 meses", "session_id": session_id, "user_id": "usr-carlos-001"})
+    assert r3.status_code == 200
+    assert "preparar una simulación" in r3.json()["reply"]
+
+    r4 = client.post("/api/chat", json={"message": "si, adelante con la simulacion", "session_id": session_id, "user_id": "usr-carlos-001"})
+    assert r4.status_code == 200
+    b4 = r4.json()
+    assert b4["active_use_case"] == "CU-01"
+    assert "Simulación de Préstamo Personal" in b4["reply"]
+    assert "6 meses" in b4["reply"]
+
+    r5 = client.post("/api/chat", json={"message": "si, adelante con el prestamo", "session_id": session_id, "user_id": "usr-carlos-001"})
+    assert r5.status_code == 200
+    b5 = r5.json()
+    assert b5["active_use_case"] == "CU-01-ORIGINATION"
+    assert "préstamo" in b5["reply"].lower() or "score" in b5["reply"].lower()
+
+
 
 
 

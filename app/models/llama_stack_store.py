@@ -862,6 +862,8 @@ def detect_and_execute_fintech_tool(
     session_id: str,
 ) -> Optional[Tuple[str, str, Dict[str, Any], str, Optional[Dict[str, Any]]]]:
     norm = _normalize(user_text)
+    clean_norm = " ".join(re.sub(r"[^\w\s]", " ", norm).split())
+    tokens = set(clean_norm.split())
 
     if norm == "cerrar_conversacion":
         llama_stack_store.set_active_flow(session_id, None)
@@ -913,25 +915,15 @@ def detect_and_execute_fintech_tool(
 
     active_flow = llama_stack_store.get_active_flow(session_id)
     is_resuming_flow = active_flow is not None and (
-        norm in (
-            "continuar_solicitud",
-            "si continuar solicitud",
-            "si, continuar solicitud",
-            "continuar con mi solicitud",
-            "si",
-            "sí",
-            "continuar",
-            "claro",
-            "va",
-            "adelante",
-            "por favor",
-            "si por favor",
-            "si continuar",
-            "retomar",
-            "dale",
-            "ok",
+        active_flow.get("step") not in ("confirmar_simulacion", "simulado")
+        and "?" not in user_text
+        and not bool(tokens & {"no", "cuanto", "como", "que", "donde", "cuando", "porque"})
+        and (
+            norm == "continuar_solicitud"
+            or "continuar solicitud" in clean_norm
+            or bool(tokens & {"si", "continuar", "retomar", "claro", "va", "adelante", "dale", "ok"})
+            or "por favor" in clean_norm
         )
-        and active_flow.get("step") not in ("confirmar_simulacion", "simulado")
     )
     if is_resuming_flow:
         saved_reply = active_flow.get("reply", "Retomando tu solicitud.")
@@ -1294,8 +1286,20 @@ def detect_and_execute_fintech_tool(
 
     confirm_sim_match = re.match(r"^confirmar_sim_(personal|negocio|express)_(\d+)(m|d)_(\d+)$", norm)
     active_is_confirm_step = active_flow.get("step") == "confirmar_simulacion"
-    affirmative_words = ["si", "ok", "correcto", "va", "si por favor", "adelante", "preparar", "simular", "de acuerdo", "bien"]
-    is_affirmative_confirm = active_is_confirm_step and any(norm == w or norm.startswith(f"{w} ") for w in affirmative_words)
+    is_negative = bool(tokens & {"no", "cancelar", "cambiar", "corregir", "atras"})
+    is_affirmative_confirm = active_is_confirm_step and not is_negative and (
+        bool(tokens & {
+            "si", "ok", "correcto", "va", "adelante", "preparar", "simular",
+            "simulacion", "simula", "acuerdo", "bien", "claro", "dale",
+            "confirmar", "confirmo", "perfecto", "excelente", "listo",
+            "hecho", "orale", "procede", "proceder"
+        })
+        or "esta bien" in clean_norm
+        or "de acuerdo" in clean_norm
+        or "por favor" in clean_norm
+        or "asi esta" in clean_norm
+        or "con la simulacion" in clean_norm
+    )
 
     if confirm_sim_match or is_affirmative_confirm:
         if confirm_sim_match:
@@ -1361,19 +1365,15 @@ def detect_and_execute_fintech_tool(
 
     originate_match = re.match(r"^(?:solicitar|sim|contratar)_(plazo|express|negocio|personal)_(\d+)(m|d)_(\d+)$", norm)
     active_is_simulated_step = active_flow.get("step") == "simulado"
-    wants_to_originate_text = active_is_simulated_step and norm in (
-        "solicitar",
-        "contratar",
-        "lo quiero",
-        "si",
-        "si solicitar",
-        "si contratar",
-        "solicitar este plazo",
-        "confirmar",
-        "adelante",
-        "va",
-        "acepto",
-        "me interesa",
+    wants_to_originate_text = active_is_simulated_step and not is_negative and (
+        bool(tokens & {
+            "solicitar", "contratar", "quiero", "acepto", "si", "adelante",
+            "va", "confirmar", "confirmo", "dale", "ok", "proceder", "procede"
+        })
+        or "lo quiero" in clean_norm
+        or "este plazo" in clean_norm
+        or "por favor" in clean_norm
+        or "con el prestamo" in clean_norm
     )
     if originate_match or wants_to_originate_text:
         if originate_match:
