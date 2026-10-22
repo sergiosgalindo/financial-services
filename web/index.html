@@ -1,167 +1,261 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-bs-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fintech Omnichannel Assistant — WhatsApp + Llama + RAG + SQL Core</title>
+  <title>Fintech AI — Asistente de Préstamos y Créditos</title>
   <link
     href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
     rel="stylesheet"
   />
   <link rel="stylesheet" href="/static/styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
-<body class="bg-light">
-  <nav class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom shadow-sm">
-    <div class="container-fluid px-4">
-      <span class="navbar-brand fw-bold d-flex align-items-center gap-2">
-        <span>🏦 Fintech Omnichannel Orchestrator</span>
-        <span class="badge bg-success">Llama 3.1 + RAG + SQL</span>
-      </span>
-      <div class="d-flex align-items-center gap-2">
-        <span id="healthBadge" class="badge bg-secondary">Verificando estado...</span>
-        <button id="openOptionsTopBtn" class="btn btn-success btn-sm fw-semibold" type="button">
-          ☰ Ver opciones
-        </button>
-        <button id="resetBtn" class="btn btn-outline-light btn-sm" type="button">
-          Reiniciar Conversación
-        </button>
+<body class="chatgpt-body">
+  <!-- Top Navigation Bar -->
+  <header class="chatgpt-header">
+    <div class="header-left">
+      <div class="brand-pill">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="brand-icon">
+          <path d="M3 21h18"/>
+          <path d="M3 10h18"/>
+          <path d="M5 6l7-3 7 3"/>
+          <path d="M4 10v11"/>
+          <path d="M20 10v11"/>
+          <path d="M8 14v4"/>
+          <path d="M12 14v4"/>
+          <path d="M16 14v4"/>
+        </svg>
+        <span class="brand-title">Fintech AI</span>
+        <span class="d-none d-lg-inline small text-secondary">Fintech Omnichannel Orchestrator</span>
+        <span class="badge model-badge">Llama 3.1</span>
+      </div>
+      <div id="healthIndicator" class="health-status online" title="Sistema en línea">
+        <span class="status-dot"></span>
+        <span id="healthLabel">En línea</span>
       </div>
     </div>
-  </nav>
 
-  <main class="container-fluid py-4 px-4">
-    <div class="row g-4">
-      <div class="col-lg-7">
-        <div class="card shadow-sm border-0 h-100">
-          <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <div>
-              <h5 class="mb-0 fw-bold">Consola Omnicanal (WhatsApp & Web)</h5>
-              <small class="text-muted">Soporta Menú Interactivo "Ver opciones", CU-01..CU-04, RAG Legal y Llama Stack Memory</small>
+    <div class="header-center">
+      <div class="customer-switcher">
+        <label for="customerSelect" class="switcher-label">Cliente activo:</label>
+        <select id="customerSelect" class="form-select form-select-sm customer-select">
+          <option value="usr-carlos-001">Carlos Mendoza (ACTIVO • Línea $50k)</option>
+          <option value="usr-ana-002">Ana Sofía Garza (PENDIENTE VALIDACIÓN)</option>
+          <option value="usr-roberto-003">Roberto Vázquez (BLOQUEADO RIESGO)</option>
+          <option value="anon-demo">Nuevo Usuario (Sin cuenta / Anónimo)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <button id="resetChatBtn" class="btn btn-icon-subtle" title="Nuevo chat (reiniciar)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        <span class="d-none d-md-inline ms-1">Nuevo chat</span>
+      </button>
+
+      <button id="toggleAdminBtn" class="btn btn-icon-subtle" data-bs-toggle="offcanvas" data-bs-target="#adminDrawer" aria-controls="adminDrawer" title="Panel Técnico">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span class="d-none d-md-inline ms-1">Panel Técnico</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Chat Container -->
+  <main class="chatgpt-main">
+    <div class="chat-container">
+      
+      <!-- Welcome / Empty State Screen (shown on start) -->
+      <div id="welcomeState" class="welcome-container">
+        <div class="welcome-avatar">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <h1 class="welcome-title">¿En qué puedo ayudarte hoy con tu crédito?</h1>
+        <p class="welcome-subtitle">Simula préstamos, consulta tu estado de cuenta, realiza pagos o revisa políticas y requisitos en segundos.</p>
+        
+        <div class="starter-grid">
+          <button class="starter-card quick-prompt" data-prompt="Quiero 1000 pesos">
+            <div class="starter-icon">💰</div>
+            <div class="starter-content">
+              <strong>Quiero $1,000 pesos</strong>
+              <span>Iniciar simulación rápida de préstamo</span>
             </div>
-            <div class="d-flex align-items-center gap-2">
-              <label for="customerSelect" class="small fw-semibold text-secondary mb-0">Cliente activo:</label>
-              <select id="customerSelect" class="form-select form-select-sm" style="width: auto;">
-                <option value="usr-carlos-001">Carlos Mendoza (ACTIVO - Línea $50,000)</option>
-                <option value="usr-ana-002">Ana Sofía Garza (PENDIENTE_VALIDACION)</option>
-                <option value="usr-roberto-003">Roberto Vázquez (BLOQUEADO_RIESGO)</option>
-              </select>
+          </button>
+
+          <button class="starter-card quick-prompt" data-prompt="Préstamo para mi negocio">
+            <div class="starter-icon">💼</div>
+            <div class="starter-content">
+              <strong>Préstamo para mi negocio</strong>
+              <span>Financiamiento comercial e inversión</span>
             </div>
-          </div>
+          </button>
 
-          <div class="card-body d-flex flex-column position-relative">
-            <div class="mb-3 d-flex flex-wrap gap-2">
-              <button id="openOptionsQuickBtn" class="btn btn-dark btn-sm fw-semibold" type="button">
-                ☰ Ver opciones (Menú WhatsApp)
-              </button>
-              <button class="btn btn-outline-primary btn-sm quick-prompt" data-prompt="Simula un préstamo personal de $12,000 a 6 meses">
-                📄 CU-01: Simular Préstamo $12,000
-              </button>
-              <button class="btn btn-outline-success btn-sm quick-prompt" data-prompt="Quiero validar mi contrato con mi código OTP 482910">
-                🔐 CU-02: Validar Contrato IVR
-              </button>
-              <button class="btn btn-outline-info btn-sm quick-prompt" data-prompt="¿Cuál es mi estado de cuenta, saldo disponible y pago mínimo?">
-                📊 CU-03: Estado de Cuenta
-              </button>
-              <button class="btn btn-outline-dark btn-sm quick-prompt" data-prompt="Ya realicé mi pago de $2,859.75 por SPEI">
-                ✅ CU-04: Conciliar Pago SPEI
-              </button>
+          <button class="starter-card quick-prompt" data-prompt="¿Cuál es mi estado de cuenta y cuánto debo?">
+            <div class="starter-icon">📊</div>
+            <div class="starter-content">
+              <strong>Estado de cuenta y saldo</strong>
+              <span>Revisar saldo actual, corte y cuotas</span>
             </div>
+          </button>
 
-            <div
-              id="chatMessages"
-              class="chat-box border rounded p-3 mb-3 bg-white flex-grow-1"
-              aria-live="polite"
-            ></div>
-
-            <form id="chatForm" class="d-flex gap-2">
-              <button
-                id="openOptionsInputBtn"
-                type="button"
-                class="btn btn-outline-dark fw-semibold text-nowrap"
-                title="Abrir menú interactivo de WhatsApp"
-              >
-                ☰ Ver opciones
-              </button>
-              <input
-                id="messageInput"
-                type="text"
-                class="form-control"
-                placeholder="Escribe 'Hola', 'Menú' o selecciona 'Ver opciones'..."
-                required
-              />
-              <button id="sendBtn" type="submit" class="btn btn-primary px-4">
-                Enviar
-              </button>
-            </form>
-          </div>
+          <button class="starter-card quick-prompt" data-prompt="¿Cobran penalización por liquidar antes o atraso?">
+            <div class="starter-icon">⚡</div>
+            <div class="starter-content">
+              <strong>Tasas, moratorios y pago anticipado</strong>
+              <span>Políticas claras con $0 penalización</span>
+            </div>
+          </button>
         </div>
       </div>
 
-      <div class="col-lg-5">
-        <div class="card shadow-sm border-0 mb-4">
-          <div class="card-header bg-white py-3">
-            <h6 class="mb-0 fw-bold">🧮 Simulador Directo de Amortización Francesa (CU-01)</h6>
-          </div>
-          <div class="card-body">
-            <form id="loanSimForm" class="row g-2 align-items-end">
-              <div class="col-sm-4">
-                <label class="form-label small mb-1" for="simProduct">Producto</label>
-                <select id="simProduct" class="form-select form-select-sm">
-                  <option value="PRESTAMO_PERSONAL">Préstamo Personal</option>
-                  <option value="DINERO_EXPRESS">Dinero Express</option>
-                </select>
-              </div>
-              <div class="col-sm-4">
-                <label class="form-label small mb-1" for="simAmount">Monto (MXN)</label>
-                <input id="simAmount" type="number" class="form-control form-control-sm" value="10000" min="1000" max="50000" />
-              </div>
-              <div class="col-sm-4">
-                <button type="submit" class="btn btn-success btn-sm w-100">Calcular Tabla</button>
-              </div>
-            </form>
-            <div id="simResultBox" class="mt-3 small text-muted">
-              Ejecuta una simulación para inspeccionar el desglose de capital, interés ordinario, IVA (16%) y contraseña PDF.
-            </div>
-          </div>
-        </div>
+      <!-- Active Message Stream -->
+      <div id="chatMessages" class="chat-messages" aria-live="polite"></div>
 
-        <div class="card shadow-sm border-0">
-          <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
-            <h6 class="mb-0 fw-bold">🔍 Inspector de Base de Datos & Trazabilidad RAG</h6>
-            <button id="refreshCustomersBtn" class="btn btn-outline-secondary btn-sm" type="button">
-              Actualizar BD
-            </button>
-          </div>
-          <div class="card-body">
-            <div id="sourcesPanel" class="mb-3">
-              <p class="small text-muted mb-1">Fragmentos RAG y Function Calling de la última respuesta:</p>
-              <div id="sourcesList" class="small text-secondary">Sin consultas recientes.</div>
-            </div>
-            <hr />
-            <div>
-              <p class="small fw-semibold mb-2">Cuentas de Crédito y Bitácora Omnicanal en BD:</p>
-              <div id="customersList" class="small">Cargando registros financieros...</div>
-            </div>
-          </div>
+      <!-- Bottom Chat Input Bar -->
+      <div class="chat-input-wrapper">
+        <form id="chatForm" class="chat-input-container">
+          <button id="openMenuBtn" type="button" class="btn-input-action" title="Abrir catálogo de opciones de WhatsApp">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+            <span class="d-none d-sm-inline ms-1">Menú</span>
+          </button>
+
+          <textarea
+            id="messageInput"
+            class="chat-textarea"
+            placeholder="Pregunta sobre préstamos, cuotas, simulaciones o escribe 'Quiero 1000 pesos'..."
+            rows="1"
+            required
+          ></textarea>
+
+          <button id="sendBtn" type="submit" class="btn-send" title="Enviar mensaje" disabled>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="19" x2="12" y2="5"></line>
+              <polyline points="5 12 12 5 19 12"></polyline>
+            </svg>
+          </button>
+        </form>
+        <div class="input-disclaimer">
+          Asistente financiero IA con Llama 3.1, RAG Semántico y Amortización Francesa oficial.
         </div>
       </div>
+
     </div>
   </main>
 
-  <!-- WhatsApp Interactive List Bottom-Sheet Modal ("Ver opciones") -->
+  <!-- WhatsApp Floating Action Button (Esquina Inferior Derecha) -->
+  <a
+    id="whatsappFloatingBtn"
+    href="https://wa.me/5212462168664?text=Hola,%20quiero%20informaci%C3%B3n%20sobre%20un%20pr%C3%A9stamo"
+    target="_blank"
+    rel="noopener noreferrer"
+    class="whatsapp-fab"
+    aria-label="Abrir WhatsApp"
+    title="Chatear en WhatsApp oficial"
+  >
+    <div class="whatsapp-fab-icon">
+      <svg width="34" height="34" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.888 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+      </svg>
+    </div>
+    <span class="whatsapp-fab-tooltip">Chatear por WhatsApp</span>
+  </a>
+
+  <!-- Technical Offcanvas Drawer (Admin & DB Inspector) -->
+  <div class="offcanvas offcanvas-end text-bg-dark" tabindex="-1" id="adminDrawer" aria-labelledby="adminDrawerLabel">
+    <div class="offcanvas-header border-bottom border-secondary">
+      <h5 class="offcanvas-title fw-bold" id="adminDrawerLabel">🛠️ Panel Técnico & Base de Datos</h5>
+      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+    </div>
+    <div class="offcanvas-body">
+      <!-- Direct Simulator -->
+      <div class="card bg-secondary bg-opacity-25 border-secondary mb-4">
+        <div class="card-header bg-transparent fw-bold border-secondary">
+          🧮 Simulador Directo de Amortización (CU-01)
+        </div>
+        <div class="card-body">
+          <form id="loanSimForm" class="row g-2">
+            <div class="col-12">
+              <label class="form-label small" for="simProduct">Producto</label>
+              <select id="simProduct" class="form-select form-select-sm bg-dark text-light border-secondary">
+                <option value="PRESTAMO_PERSONAL">Préstamo Personal (45.5% Tasa / 58.2% CAT)</option>
+                <option value="PRESTAMO_NEGOCIO">Préstamo para Negocio (39.0% Tasa / 48.5% CAT)</option>
+                <option value="DINERO_EXPRESS">Dinero Express (36.0% Tasa / 44.0% CAT)</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label small" for="simAmount">Monto (MXN)</label>
+              <input id="simAmount" type="number" class="form-control form-control-sm bg-dark text-light border-secondary" value="10000" min="500" max="50000" />
+            </div>
+            <div class="col-6">
+              <label class="form-label small" for="simTerm">Plazo (meses/días)</label>
+              <input id="simTerm" type="number" class="form-control form-control-sm bg-dark text-light border-secondary" value="6" min="1" max="24" />
+            </div>
+            <div class="col-12 mt-3">
+              <button type="submit" class="btn btn-success btn-sm w-100 fw-semibold">Calcular Simulación</button>
+            </div>
+          </form>
+          <div id="simResultBox" class="mt-3 small text-secondary">
+            Inspecciona el cálculo de amortización francesa, 16% IVA y contraseña PDF.
+          </div>
+        </div>
+      </div>
+
+      <!-- RAG Inspector -->
+      <div class="card bg-secondary bg-opacity-25 border-secondary mb-4">
+        <div class="card-header bg-transparent fw-bold border-secondary">
+          🔍 Trazabilidad RAG & Function Calling
+        </div>
+        <div class="card-body">
+          <div id="sourcesPanel">
+            <p class="small text-secondary mb-1">Última ejecución del orquestador:</p>
+            <div id="sourcesList" class="small text-light">Sin consultas recientes.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DB Customer Inspector -->
+      <div class="card bg-secondary bg-opacity-25 border-secondary">
+        <div class="card-header bg-transparent fw-bold border-secondary d-flex justify-content-between align-items-center">
+          <span>👥 Cuentas de Crédito en BD</span>
+          <button id="refreshCustomersBtn" class="btn btn-outline-light btn-sm py-0 px-2" type="button">Actualizar</button>
+        </div>
+        <div class="card-body">
+          <div id="customersList" class="small text-secondary">Cargando registros...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WhatsApp Interactive List Bottom-Sheet Modal -->
   <div id="waOptionsOverlay" class="wa-sheet-overlay d-none" role="dialog" aria-modal="true" aria-labelledby="waSheetTitle">
     <div class="wa-sheet-container">
       <div class="wa-sheet-handle"></div>
       <div class="wa-sheet-header">
         <button id="closeWaSheetBtn" type="button" class="wa-sheet-close" aria-label="Cerrar menú">✕</button>
-        <span id="waSheetTitle" class="wa-sheet-title">Ver opciones</span>
+        <span id="waSheetTitle" class="wa-sheet-title">Opciones Disponibles</span>
         <span style="width: 28px;"></span>
       </div>
       <div id="waSheetRows" class="wa-sheet-list"></div>
-      <div class="wa-sheet-footer">Toca para seleccionar un elemento</div>
+      <div class="wa-sheet-footer">Selecciona una opción para enviarla</div>
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/app.js"></script>
 </body>
 </html>
