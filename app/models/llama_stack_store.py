@@ -921,7 +921,11 @@ def detect_and_execute_fintech_tool(
         and (
             norm == "continuar_solicitud"
             or "continuar solicitud" in clean_norm
-            or bool(tokens & {"si", "continuar", "retomar", "claro", "va", "adelante", "dale", "ok"})
+            or bool(tokens & {
+                "si", "continuar", "continua", "retomar", "retoma", "sigamos",
+                "siguiente", "claro", "va", "adelante", "confirmo", "confirmar",
+                "dale", "ok", "procede", "proceder", "listo", "hecho", "bueno", "sale"
+            })
             or "por favor" in clean_norm
         )
     )
@@ -1286,19 +1290,23 @@ def detect_and_execute_fintech_tool(
 
     confirm_sim_match = re.match(r"^confirmar_sim_(personal|negocio|express)_(\d+)(m|d)_(\d+)$", norm)
     active_is_confirm_step = active_flow.get("step") == "confirmar_simulacion"
-    is_negative = bool(tokens & {"no", "cancelar", "cambiar", "corregir", "atras"})
+    is_negative = bool(tokens & {"no", "cancelar", "cancela", "cambiar", "cambio", "corregir", "atras"})
+    confirm_tokens = {
+        "si", "ok", "okay", "correcto", "va", "dale", "claro", "porfa",
+        "sale", "bueno", "perfecto", "excelente", "listo", "hecho", "afirmativo", "arriba",
+        "adelante", "continua", "continuar", "sigamos", "avanza", "siguiente",
+        "procede", "proceder", "procedamos", "confirmo", "confirmar", "confirmado",
+        "simula", "simular", "simulalo", "simulacion", "simulaciones",
+        "prepara", "preparar", "preparala", "genera", "generar", "generala",
+        "hazlo", "hazla", "muestrame", "muestramela", "ensename",
+    }
+    confirm_phrases = (
+        "esta bien", "de acuerdo", "por favor", "asi esta", "me parece",
+        "quiero ver", "ver la", "ver simulacion", "la simulacion", "con la simulacion",
+        "asi dejalo", "todo bien", "me late", "dale gas", "vamos",
+    )
     is_affirmative_confirm = active_is_confirm_step and not is_negative and (
-        bool(tokens & {
-            "si", "ok", "correcto", "va", "adelante", "preparar", "simular",
-            "simulacion", "simula", "acuerdo", "bien", "claro", "dale",
-            "confirmar", "confirmo", "perfecto", "excelente", "listo",
-            "hecho", "orale", "procede", "proceder"
-        })
-        or "esta bien" in clean_norm
-        or "de acuerdo" in clean_norm
-        or "por favor" in clean_norm
-        or "asi esta" in clean_norm
-        or "con la simulacion" in clean_norm
+        bool(tokens & confirm_tokens) or any(p in clean_norm for p in confirm_phrases)
     )
 
     if confirm_sim_match or is_affirmative_confirm:
@@ -1365,15 +1373,19 @@ def detect_and_execute_fintech_tool(
 
     originate_match = re.match(r"^(?:solicitar|sim|contratar)_(plazo|express|negocio|personal)_(\d+)(m|d)_(\d+)$", norm)
     active_is_simulated_step = active_flow.get("step") == "simulado"
+    originate_tokens = {
+        "solicitar", "solicito", "solicita", "contratar", "contrato", "acepto", "aceptar",
+        "quiero", "interesa", "tomar", "tomalo", "si", "adelante", "confirmo", "confirmar",
+        "continua", "continuar", "procede", "proceder", "procedamos", "dale", "va", "ok",
+        "listo", "hecho", "perfecto", "excelente", "arriba",
+    }
+    originate_phrases = (
+        "lo quiero", "este plazo", "el prestamo", "este credito", "por favor",
+        "me interesa", "de acuerdo", "esta bien", "con el prestamo", "con el credito",
+        "vamos con este", "me quedo con este",
+    )
     wants_to_originate_text = active_is_simulated_step and not is_negative and (
-        bool(tokens & {
-            "solicitar", "contratar", "quiero", "acepto", "si", "adelante",
-            "va", "confirmar", "confirmo", "dale", "ok", "proceder", "procede"
-        })
-        or "lo quiero" in clean_norm
-        or "este plazo" in clean_norm
-        or "por favor" in clean_norm
-        or "con el prestamo" in clean_norm
+        bool(tokens & originate_tokens) or any(p in clean_norm for p in originate_phrases)
     )
     if originate_match or wants_to_originate_text:
         if originate_match:

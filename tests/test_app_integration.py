@@ -620,6 +620,31 @@ def test_carlos_screenshot_affirmative_phrase_with_comma_and_tokens() -> None:
     assert "préstamo" in b5["reply"].lower() or "score" in b5["reply"].lower()
 
 
+def test_rich_conversational_phrases_for_simulation_confirmation() -> None:
+    phrases = [
+        "adelante",
+        "confirmo",
+        "continua",
+        "simula",
+        "quiero ver la simulación",
+        "ver la simulación",
+        "muestramela",
+        "me parece bien",
+    ]
+    for i, p in enumerate(phrases):
+        sid = f"test-phrase-sim-{i}"
+        client.post("/api/chat", json={"message": "Quiero 5000 pesos", "session_id": sid, "user_id": "usr-carlos-001"})
+        client.post("/api/chat", json={"message": "Personal", "session_id": sid, "user_id": "usr-carlos-001"})
+        client.post("/api/chat", json={"message": "3 meses", "session_id": sid, "user_id": "usr-carlos-001"})
+
+        res = client.post("/api/chat", json={"message": p, "session_id": sid, "user_id": "usr-carlos-001"})
+        assert res.status_code == 200
+        body = res.json()
+        assert body["active_use_case"] == "CU-01"
+        assert "Simulación" in body["reply"]
+        assert "3 meses" in body["reply"]
+
+
 
 
 
